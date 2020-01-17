@@ -162,25 +162,25 @@ def get_interaction_id(particle_v, np_features,):
     # sort out the interaction ids using the information of ancestor vtx info
     ##########################################################################
     # get the particle ancestor vtx array first
-    interaction_vtxs = []
+    ancestor_vtxs = []
     for particle in particle_v:
         ancestor_vtx = [
             particle.ancestor_x(),
             particle.ancestor_y(),
             particle.ancestor_z(),
         ]
-        interaction_vtxs.append(ancestor_vtx)
-    interaction_vtxs = np.asarray(interaction_vtxs)
+        ancestor_vtxs.append(ancestor_vtx)
+    ancestor_vtxs = np.asarray(ancestor_vtxs)
     # get the list of unique interaction vertexes
     interaction_vtx_list = np.unique(
-        interaction_vtxs,
+        ancestor_vtxs,
         axis=0,
     ).tolist()
     # loop over clust_ids
     for clust_id in range(particle_v.size()):
         # get the interaction id from the unique list (index is the id)
         interaction_id = interaction_vtx_list.index(
-            interaction_vtxs[clust_id].tolist()
+            ancestor_vtxs[clust_id].tolist()
         )
         # update the interaction_ids array
         clust_inds = np.where(np_features[:,1]==clust_id)[0]

@@ -373,7 +373,83 @@ def parse_cluster3d_full_extended(data):
     )
     return np_voxels, np_features
 
-
+def parse_interaction_graph(data):
+    '''
+    A function for extracting the truth of interaction label for each group_id
+    args:
+        length 1 array of larcv::EventParticle
+    return:
+        a numpy array with the shape (n, 2) where n is the number of group ids, 2 are group_ids and interaction_ids.
+        (we record group_ids here because it is not necessarily consecutive)
+    '''
+    # get the vector for particle info
+    particle_v = data[0].as_vector()
+    # load the key informations: group_ids and ancestor_vtx
+    group_ids = []
+    ancestor_vtxs = []
+    nums_voxels = []
+    for p in particle_v:
+        group_ids.append(p.group_id())
+        ancestor_vtxs.append(
+            [
+                p.ancestor_x(),
+                p.ancestor_y(),
+                p.ancestor_z(),
+            ]
+        )
+        nums_voxels.append(p.num_voxels())
+    group_ids = np.asarray(group_ids)
+    ancestor_vtxs = np.asarray(ancestor_vtxs)
+    nums_voxels = np.asarray(nums_voxels)
+    # preparation for sorting out interaction ids, getting unique list of interaction vtxes
+    # the index will be interaction id
+    interaction_vtx_list = np.unique(ancestor_vtxs, axis=0).tolist()
+    group_unique_ids = np.unique(group_ids)
+    #######################################
+    ## sorting out interaction ids for each group
+    #######################################
+    interaction_ids = (-1.)*np.ones(group_unique_ids.shape[0])
+    # loop over group unique id
+    for i, group_id in enumerate(group_unique_ids):
+        # get indexes for cluster ids
+        inds = np.where(group_ids==group_id)[0]
+        # get ancestor vtxs for this group
+        ancestor_vtxs_this_group = ancestor_vtxs[inds, :]
+        # check whether within group ancestor vtxs are unique
+        unique_ancenstor_vtxs_this_group = np.unique(ancestor_vtxs_this_group, axis=0)
+        if unique_ancenstor_vtxs_this_group.shape[0]==0:
+            print("This group should not have existed!")
+        elif unique_ancenstor_vtxs_this_group.shape[0]==1:
+            interaction_ids[i] = interaction_vtx_list.index(unique_ancenstor_vtxs_this_group[0].tolist())
+        else:
+            # if there're clusters originated from different vtxs
+            # we use the interaction that contributes to majority of voxels as the interaction for this group
+            nums_voxels_this_group = nums_voxels[inds]
+            # get the interaction ids for this group
+            interaction_ids_this_group = np.asarray([
+                interaction_vtx_list.index(vtx.tolist()) for vtx in ancestor_vtxs_this_group
+            ])
+            # get the majority interaction id
+            unique_interaction_ids_this_group = np.unique(interaction_ids_this_group)
+            majority_interaction_id = -1
+            majority_num_voxels = 0
+            for unique_interaction_id in unique_interaction_ids_this_group:
+                num_voxels = np.sum(
+                    nums_voxels_this_group[np.where(interaction_ids_this_group==unique_interaction_id)[0]]
+                )
+                if num_voxels>majority_num_voxels:
+                    majority_interaction_id = unique_interaction_id
+            # update
+            interaction_ids[i] = majority_interaction_id
+            # print the warning (seems to be a rare case, comment out for now)
+            # print("Warning: group (id="+str(group_id)+") contains multiple interaction clusters!")
+    return np.concatenate(
+        (
+            np.reshape(group_unique_ids, (-1,1)),
+            np.reshape(interaction_ids, (-1,1))
+        ),
+        axis=1
+    )
 
 def parse_cluster3d_clean(data):
     """
