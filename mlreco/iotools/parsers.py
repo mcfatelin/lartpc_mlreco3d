@@ -350,7 +350,6 @@ def parse_cluster3d_full(data):
     np_features = np.concatenate(clusters_features, axis=0)
     return np_voxels, np_features
 
-# Qing's function, remove this line after debugging
 def parse_cluster3d_full_extended(data):
     '''
     a function to retrieve clusters tensor
@@ -373,6 +372,8 @@ def parse_cluster3d_full_extended(data):
         axis=1
     )
     return np_voxels, np_features
+
+
 
 def parse_cluster3d_clean(data):
     """
