@@ -379,7 +379,7 @@ def parse_interaction_graph(data):
     args:
         length 1 array of larcv::EventParticle
     return:
-        a numpy array with the shape (n, 2) where n is the number of group ids, 2 are group_ids and interaction_ids.
+        a numpy array with the shape (n, 3) where n is the number of group ids, 3 are group_ids, interaction_ids, and voxel_nums.
         (we record group_ids here because it is not necessarily consecutive)
     '''
     # get the vector for particle info
@@ -409,22 +409,25 @@ def parse_interaction_graph(data):
     ## sorting out interaction ids for each group
     #######################################
     interaction_ids = (-1.)*np.ones(group_unique_ids.shape[0])
+    voxel_nums = np.zeros(group_unique_ids.shape[0])
     # loop over group unique id
     for i, group_id in enumerate(group_unique_ids):
         # get indexes for cluster ids
         inds = np.where(group_ids==group_id)[0]
         # get ancestor vtxs for this group
         ancestor_vtxs_this_group = ancestor_vtxs[inds, :]
+        # get the number of voxels of each clusters in this group
+        nums_voxels_this_group = nums_voxels[inds]
         # check whether within group ancestor vtxs are unique
         unique_ancenstor_vtxs_this_group = np.unique(ancestor_vtxs_this_group, axis=0)
         if unique_ancenstor_vtxs_this_group.shape[0]==0:
             print("This group should not have existed!")
         elif unique_ancenstor_vtxs_this_group.shape[0]==1:
             interaction_ids[i] = interaction_vtx_list.index(unique_ancenstor_vtxs_this_group[0].tolist())
+            voxel_nums[i] = np.sum(nums_voxels_this_group)
         else:
             # if there're clusters originated from different vtxs
             # we use the interaction that contributes to majority of voxels as the interaction for this group
-            nums_voxels_this_group = nums_voxels[inds]
             # get the interaction ids for this group
             interaction_ids_this_group = np.asarray([
                 interaction_vtx_list.index(vtx.tolist()) for vtx in ancestor_vtxs_this_group
@@ -441,12 +444,14 @@ def parse_interaction_graph(data):
                     majority_interaction_id = unique_interaction_id
             # update
             interaction_ids[i] = majority_interaction_id
+            voxel_nums[i] = np.sum(nums_voxels_this_group)
             # print the warning (seems to be a rare case, comment out for now)
             # print("Warning: group (id="+str(group_id)+") contains multiple interaction clusters!")
     return np.concatenate(
         (
             np.reshape(group_unique_ids, (-1,1)),
-            np.reshape(interaction_ids, (-1,1))
+            np.reshape(interaction_ids, (-1,1)),
+            np.reshape(voxel_nums, (-1,1)),
         ),
         axis=1
     )
