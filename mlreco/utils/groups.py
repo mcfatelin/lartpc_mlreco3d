@@ -194,7 +194,6 @@ def get_interaction_id(particle_v, np_features,):
     return interaction_ids
 
 
-# Qing's function in development, remove this line after debugging
 def form_groups(data):
     '''
     A function to get the indexes of the data tensor which belongs to same group in same batch
