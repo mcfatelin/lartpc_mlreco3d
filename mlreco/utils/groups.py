@@ -10,6 +10,7 @@
 
 import numpy as np
 from scipy.spatial.distance import cdist
+from scipy.stats import mode
 import torch
 
 def get_group_types(particle_v, meta, point_type="3d"):
@@ -23,7 +24,7 @@ def get_group_types(particle_v, meta, point_type="3d"):
     for particle in particle_v:
         pdg_code = abs(particle.pdg_code())
         prc = particle.creation_process()
-        
+
         # Determine point type
         if (pdg_code == 2212):
             gt_type = 0 # proton
@@ -42,7 +43,7 @@ def get_group_types(particle_v, meta, point_type="3d"):
                 gt_type = -1 # not well defined
 
         gt_types.append(gt_type)
-        
+
     return np.array(gt_types)
 
 
@@ -191,3 +192,50 @@ def get_interaction_id(particle_v, np_features,):
         (-1,1)
     )
     return interaction_ids
+
+
+# Qing's function in development, remove this line after debugging
+def form_groups(data):
+    '''
+    A function to get the indexes of the data tensor which belongs to same group in same batch
+    input:
+        data: tensor with each element in format of (x, y, z, batch_id, voxel_val, cluster_id, group_id, sem_type, interaction_id, .....)
+    output:
+        list of index list
+    '''
+    if isinstance(data, torch.Tensor):
+        data = data.cpu().detach().numpy()
+    groups = [] # main output list
+    # loop over batches
+    for batch_id in np.unique(data[:, 3]):
+        # select the indexes that belong to the same batch
+        inds_batch = np.where(data[:,3]==batch_id)[0]
+        # loop over the group_ids within the batch
+        for group_id in np.unique(data[inds_batch,6]):
+            # select the indexes which have the group id
+            inds_group = np.where(data[inds_batch,6]==group_id)[0]
+            # append the indexes of the same batch-group voxels to output
+            groups.append(inds_batch[inds_group])
+    return np.asarray(groups)
+
+
+def get_major_label(data_label, branch_index, index_list):
+    '''
+    This is a general function for extracting labels from based on a list of indexes corresponding to grouping/clustering/whatever
+        - data_label: (N, xx) tensor as in format of (x, y, z, batch_id, voxel_val, cluster_id, group_id, sem_type, interaction_id, .....)
+        - branch_index: the label index for extraction
+        - index_list: list of indexes corresponding to certain grouping/clustering/or whatever criteria
+    output:
+        label_list. Note the same grouping may contain multiple extracted labels. We selected the major one.
+
+    It is a general function for cluster.get_cluster_label, cluster.get_cluster_group, cluster.get_cluster_batch,
+    '''
+    if isinstance(data_label, torch.Tensor):
+        data_label = data_label.cpu().detach().numpy()
+    labels = []
+    # loop over the grouping/clustering list
+    for indexes in index_list:
+        labels.append(
+            mode(data_label[indexes,branch_index])[0][0]
+        )
+    return labels
