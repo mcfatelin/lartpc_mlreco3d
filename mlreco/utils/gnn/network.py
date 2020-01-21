@@ -99,3 +99,30 @@ def inter_cluster_distance(voxels, clusts, mode='set'):
         raise(ValueError('Distance mode not supported '+mode))
     return dist_mat 
 
+def group_bipartite(batch_ids, group_ids, device=None, cuda=True):
+    '''
+    Function to return edge identities (2, N) where 2 is [group_index_1, group_index_2], N is number of groups
+    group_index is the index in batch_ids and group_ids array
+    group_index_2>group_index_1 for the edge has no direction
+    '''
+    # a single check
+    if group_ids.shape[0]!=batch_ids.shape[0]:
+        raise ValueError(
+            'Input arrays are not compatible for group_bipartite!'
+        )
+
+    # loop over to get the edge indexes
+    ret = []
+    for i in range(group_ids.shape[0]):
+        for j in range(i, group_ids.shape[0]):
+            if batch_ids[i]!=batch_ids[j]:
+                ret.append([i,j])
+    # reshape ret
+    ret = torch.tensor(ret, dtype=torch.long, requires_grad=False).t().contiguous().reshape(2,-1)
+
+    # return
+    if not device is None:
+        ret = ret.to(device)
+    elif cuda:
+        ret = ret.cuda()
+    return ret
