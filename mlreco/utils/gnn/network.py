@@ -99,11 +99,12 @@ def inter_cluster_distance(voxels, clusts, mode='set'):
         raise(ValueError('Distance mode not supported '+mode))
     return dist_mat 
 
-def group_bipartite(batch_ids, group_ids, device=None, cuda=True):
+def group_bipartite(batch_ids, group_ids, device=None, cuda=True, return_id=False):
     '''
     Function to return edge identities (2, N) where 2 is [group_index_1, group_index_2], N is number of groups
     group_index is the index in batch_ids and group_ids array
     group_index_2>group_index_1 for the edge has no direction
+    if return_id is True, we return the [group_id_1, group_id_2] instead of index
     '''
     # a single check
     if group_ids.shape[0]!=batch_ids.shape[0]:
@@ -116,9 +117,15 @@ def group_bipartite(batch_ids, group_ids, device=None, cuda=True):
     for i in range(group_ids.shape[0]):
         for j in range(i, group_ids.shape[0]):
             if batch_ids[i]!=batch_ids[j]:
-                ret.append([i,j])
+                if not return_id:
+                    ret.append([i,j])
+                else:
+                    ret.append([batch_ids[i], group_ids[i], group_ids[j]])
     # reshape ret
-    ret = torch.tensor(ret, dtype=torch.long, requires_grad=False).t().contiguous().reshape(2,-1)
+    if not return_id:
+        ret = torch.tensor(ret, dtype=torch.long, requires_grad=False).t().contiguous().reshape(2,-1)
+    else:
+        ret = torch.tensor(ret, dtype=torch.long, requires_grad=False).t().contiguous().reshape(3,-1)
 
     # return
     if not device is None:

@@ -3,6 +3,7 @@ import torch
 from mlreco.utils.gnn.cluster import get_cluster_centers, get_cluster_voxels, get_cluster_features, get_cluster_energies, get_cluster_dirs
 import numpy as np
 import scipy as sp
+from mlreco.utils.gnn.groups import group_bipartite
 
 
 # TODO: add vertex orientation information
@@ -174,8 +175,8 @@ def edge_assignment(edge_index, batches, groups, cuda=True, dtype=torch.float, b
 
 def get_input_node_features(data, batch_ids, group_ids, cuda=True, device=None):
     '''
-    Function to return an array (N, F_n)
-    The function is necessary because the batch and group ids in group-wise data (N, 2+F_n) are not necessarily the same as batch_ids and group_ids, which are generated in class internal function.
+    Function to return an array (G, F_n)
+    The function is necessary because the batch and group ids in group-wise data (G, 2+F_n) are not necessarily the same as batch_ids and group_ids, which are generated in class internal function.
     Inputs:
         - data: (G, 2+F_n) tensor with batch_id, group id, and input node features (size F_n), G is number of groups
         - batch_ids: group-wise batch ids
@@ -223,3 +224,65 @@ def get_input_node_features(data, batch_ids, group_ids, cuda=True, device=None):
     elif cuda:
         node_features = node_features.cuda()
     return node_features
+
+def get_input_edge_features(data, batch_ids, group_ids, cuda=True, device=None):
+    '''
+    Function to return an array (sum_B (N_i*(N_i+1)/2) , F_e) and edge_index (2, sum_B (N_i*(N_i+1)/2) )
+    G is the number of groups.
+    sum_B (N_i*(N_i+1)/2) is the total number of edges that can be possible between two nodes. Nodes with different batch id cannot be connected
+    The function is necessary because the batch and group ids in group-wise data (G, 2+F_n) are not necessarily the same as batch_ids and group_ids, which are generated in class internal function.
+    Inputs:
+        - data: (G, 3+F_e) tensor with batch_id, group id 1, group id 2, and input node features (size F_e), G is number of groups, not necesarily same as the following two
+        - batch_ids: group-wise batch ids (G',)
+        - group_ids: group-wise group ids (G',), unique group shall have unique (batch_id, group_id)
+    Outputs:
+        - edge_features: tensor (G', F_e) group-wise
+    Note:
+        - We assume there is no ambiguity in data batch and group ids, meaning data[:, 0:2] has no unique list (axis=0) equal to itself
+    '''
+    # put data into numpy array
+    if isinstance(data, torch.Tensor):
+        data = data.cpu().detach().numpy()
+    # get the edge_index from network.group_bipartite so that it is consistent with other edge feature modes of InteractionModel. Shape is (2, -1)
+    edge_group_ids = group_bipartite(batch_ids, group_ids, cuda=False, return_id=True)
+    # check if the (group_id_1, group_id_2) contains all the edge_group_ids
+    if not np.equal(
+        np.logical_and(
+            np.logical_and(
+                np.isin(edge_group_ids[0,:], data[:,0]),
+                np.isin(edge_group_ids[1,:], data[:,1])
+            ),
+            np.isin(edge_group_ids[2,:], data[:,2]),
+        ),
+        np.asarray([True])
+    ):
+        raise ValueError(
+            'Input edge feature does not contain feature for some group id pairs!'
+        )
+
+    # loop over edge_group_ids to extract edge_features
+    output_edge_features = []
+    for batch_id, group_id_1, group_id_2 in edge_group_ids.T:
+        # select the matched the group id pair in data
+        selection = np.logical_and(
+            np.logical_and(
+                data[:,0]==batch_id,
+                data[:,1]==group_id_1
+            ),
+            data[:,2]==group_id_2,
+        )
+        # get the feature array
+        feature_array = data[np.where(selection)[0], 3:]
+        # check if there's only one feature_vector left
+        if feature_array.shape[0] > 1:
+            raise ValueError('There is ambiguity in input data for edge features!')
+        # append
+        output_edge_features.append(feature_array[0])
+
+    # return
+    output_edge_features = torch.tensor(output_edge_features, dtype=torch.float, requires_grad=False)
+    if device is not None:
+        output_edge_features = output_edge_features.to(device)
+    elif cuda:
+        output_edge_features = output_edge_features.cuda()
+    return output_edge_features
