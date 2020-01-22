@@ -285,4 +285,4 @@ def get_input_edge_features(data, batch_ids, group_ids, cuda=True, device=None):
         output_edge_features = output_edge_features.to(device)
     elif cuda:
         output_edge_features = output_edge_features.cuda()
-    return output_edge_features
+    return output_edge_features, group_bipartite(batch_ids, group_ids, device=device)
