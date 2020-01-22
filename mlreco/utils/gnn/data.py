@@ -171,3 +171,55 @@ def edge_assignment(edge_index, batches, groups, cuda=True, dtype=torch.float, b
         edge_assn = edge_assn.cuda()
     return edge_assn
     
+
+def get_input_node_features(data, batch_ids, group_ids, cuda=True, device=None):
+    '''
+    Function to return an array (N, F_n)
+    The function is necessary because the batch and group ids in group-wise data (N, 2+F_n) are not necessarily the same as batch_ids and group_ids, which are generated in class internal function.
+    Inputs:
+        - data: (G, 2+F_n) tensor with batch_id, group id, and input node features (size F_n), G is number of groups
+        - batch_ids: group-wise batch ids
+        - group_ids: group-wise group ids, unique group shall have unique (batch_id, group_id)
+    Outputs:
+        - node_features: tensor (G, F_n) group-wise
+    Note:
+        - We assume there is no ambiguity in data batch and group ids, meaning data[:, 0:2] has no unique list (axis=0) equal to itself
+    '''
+    # put data into numpy array
+    if isinstance(data, torch.Tensor):
+        data = data.cpu().detach().numpy()
+    # check if ids in data include all ids in batch_ids and group_ids
+    if not np.equal(
+        np.unique(np.isin(batch_ids, data[:, 0])),
+        np.asarray([True]),
+    ):
+        raise ValueError('batch_ids does not match ones in input data structure!')
+    if not np.equal(
+        np.unique(np.isin(group_ids, data[:, 1])),
+        np.asarray([True]),
+    ):
+        raise ValueError('group_ids does not match ones in input data structure!')
+
+    # Loop over (batch_ids, group_ids)
+    node_features = []
+    for batch_id, group_id in zip(batch_ids, group_ids):
+        # select the index for data batch and group id matches the input one
+        selection = np.logical_and(
+            data[:,0]==batch_id,
+            data[:,1]==group_id
+        )
+        # get the feature array
+        feature_array = data[np.where(selection)[0],2:]
+        # check if there's only one feature_vector left
+        if feature_array.shape[0]>1:
+            raise ValueError('There is ambiguity in input data for node features!')
+        # append
+        node_features.append(feature_array[0])
+
+    # return
+    node_features = torch.tensor(node_features, dtype=torch.float, requires_grad=False)
+    if device is not None:
+        node_features = node_features.to(device)
+    elif cuda:
+        node_features = node_features.cuda()
+    return node_features
