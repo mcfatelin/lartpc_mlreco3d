@@ -15,6 +15,7 @@ def model_dict():
     from . import cluster_edge_gnn
     from . import cluster_dir_gnn
     from . import uresnet_clustering
+    from . import interaction_gnn
 
     # Make some models available (not all of them, e.g. PPN is not standalone)
     models = {
@@ -45,6 +46,8 @@ def model_dict():
         "clust_edge_model": (cluster_edge_gnn.EdgeModel, cluster_edge_gnn.EdgeChannelLoss),
         # direction model
         "clust_dir_model": (cluster_dir_gnn.EdgeModel, cluster_dir_gnn.EdgeChannelLoss),
+        # Interaction grouping model
+        "interaction_model": (interaction_gnn.InteractionModel, interaction_gnn.InteractionClusteringLoss),
     }
     # "chain_gnn": (chain_gnn.Chain, chain_gnn.ChainLoss)
     return models
