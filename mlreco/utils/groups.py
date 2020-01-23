@@ -237,7 +237,7 @@ def get_major_label(data_label, branch_index, index_list):
         labels.append(
             mode(data_label[indexes,branch_index])[0][0]
         )
-    return labels
+    return np.asarray(labels)
 
 
 def assign_clustered_groups(
@@ -260,13 +260,13 @@ def assign_clustered_groups(
     size_of_clusters = torch.max(edge_index)+1
     # get the index of predicted, which is also equivalent to whether this edge connect (0 for no, 1 for yes) under current data structure
     _, pred_inds = torch.max(edge_pred, 1)
-    selected_inds = torch.nonzero(pred_inds, dtype=torch.long)
+    selected_inds = torch.nonzero(pred_inds).type(dtype=torch.long).view(-1)
     ##############################
     ## Based on pred_inds group the clusters, give them pseudo group ids
     ##############################
     group_ids_pred = np.ones(size_of_clusters, dtype=np.int) * (-1)
     group_ids_pred_unique_list = []
-    for clust_index_1, clust_index_2 in edge_index.t()[selected_inds]:
+    for clust_index_1, clust_index_2 in edge_index.t()[selected_inds, :]:
         if group_ids_pred[clust_index_1]>0 and group_ids_pred[clust_index_2]>0:
             pass
         elif group_ids_pred[clust_index_1]>0:
@@ -283,4 +283,6 @@ def assign_clustered_groups(
         group_ids_pred = group_ids_pred.to(device)
     elif cuda:
         group_ids_pred = group_ids_pred.cuda()
+    else:
+        group_ids_pred = group_ids_pred.cpu().detach().numpy()
     return group_ids_pred

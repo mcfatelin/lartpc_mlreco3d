@@ -20,7 +20,7 @@ class InteractionModel(torch.nn.Module):
         for use in config
         model:
             modules:
-                edge_model:
+                interaction_model:
                     name: <name of edge model>
                     model_cfg:
                         <dictionary of arguments to pass to model>
@@ -36,7 +36,7 @@ class InteractionModel(torch.nn.Module):
 
         # Get the model input parameters
         if 'modules' in cfg:
-            self.model_config = cfg['modules']['edge_model']
+            self.model_config = cfg['modules']['interaction_model']
         else:
             self.model_config = cfg
 
@@ -100,7 +100,7 @@ class InteractionModel(torch.nn.Module):
                 raise ValueError('Multiple devices (edge) are defined for InteractionModel inputs!')
 
         # Find index of points that belong to the same group
-        groups = form_group(label)
+        groups = form_groups(label)
 
         # If requested, remove groups below a certain size threshold
         if self.remove_compton:
@@ -148,7 +148,7 @@ class InteractionModel(torch.nn.Module):
             **out,
             'group_ids': [torch.tensor(group_ids).to(device)],
             'batch_ids': [batch_ids],
-            'interaction_ids': [torch.tensor(interaction_ids).to(device)]
+            'interaction_ids': [torch.tensor(interaction_ids).to(device)],
             'edge_index': [edge_index]
         }
 
@@ -159,9 +159,11 @@ class InteractionClusteringLoss(torch.nn.Module):
     Interaction clustering loss
     '''
     def __init__(self, cfg):
+        super(InteractionClusteringLoss, self).__init__()
+
         # Get the model loss parameters
         if 'modules' in cfg:
-            self.model_config = cfg['modules']['edge_model']
+            self.model_config = cfg['modules']['interaction_model']
         else:
             self.model_config = cfg
 
@@ -193,7 +195,6 @@ class InteractionClusteringLoss(torch.nn.Module):
         for i in range(len(labels)):
 
             # Get the necessary data products
-            label = labels[i]
             edge_pred = output['edge_pred'][i]
             group_ids = output['group_ids'][i]
             batch_ids = output['batch_ids'][i]
@@ -215,10 +216,8 @@ class InteractionClusteringLoss(torch.nn.Module):
 
             # Compute accuracy of assignment
             # in this model we use the edge prediction efficiency for accuracy
-            # in the mean time, the edge prediction purity is also calculated
             _, pred_inds = torch.max(edge_pred, 1)
-            total_acc += (pred_inds == edge_assn).sum().float() / (edge_assn==1).sum().float()
-            edge_pur  += (pred_inds == edge_assn).sum().float() / (pred_inds==1).sum().float()
+            total_acc += (pred_inds == edge_assn).sum().float() / edge_assn.size()[0]
 
             #################################
             # standard voxel-level evaluation
@@ -227,16 +226,16 @@ class InteractionClusteringLoss(torch.nn.Module):
             interaction_ids_pred = assign_clustered_groups(
                 edge_index,
                 edge_pred,
-                interaction_ids.size()[0],
-                device=device,
+                cuda=False,
             )
 
+            interaction_ids = interaction_ids.cpu().detach().numpy()
             # calculate the scores, efficiencies and purities
-            ari += ARI(interaction_ids_pred, interaction_ids, batch_ids)
-            ami += AMI(interaction_ids_pred, interaction_ids, batch_ids)
-            sbd += SBD(interaction_ids_pred, interaction_ids, batch_ids)
+            ari += ARI(interaction_ids_pred, interaction_ids)
+            ami += AMI(interaction_ids_pred, interaction_ids)
+            sbd += SBD(interaction_ids_pred, interaction_ids)
 
-            pur0, eff0 = purity_efficiency(interaction_ids_pred, interaction_ids, batch_ids)
+            pur0, eff0 = purity_efficiency(interaction_ids_pred, interaction_ids)
             pur += pur0
             eff += eff0
 
@@ -249,7 +248,6 @@ class InteractionClusteringLoss(torch.nn.Module):
             'purity': pur/ngpus,
             'efficiency': eff/ngpus,
             'accuracy': total_acc/ngpus,
-            'edge_purity': edge_pur/ngpu,
             'loss': total_loss/ngpus,
             'edge_count': edge_ct
         }

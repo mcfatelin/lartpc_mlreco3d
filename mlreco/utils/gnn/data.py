@@ -3,7 +3,7 @@ import torch
 from mlreco.utils.gnn.cluster import get_cluster_centers, get_cluster_voxels, get_cluster_features, get_cluster_energies, get_cluster_dirs
 import numpy as np
 import scipy as sp
-from mlreco.utils.gnn.groups import group_bipartite
+from mlreco.utils.gnn.network import group_bipartite
 
 
 # TODO: add vertex orientation information
