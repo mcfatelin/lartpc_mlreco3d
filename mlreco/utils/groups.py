@@ -254,7 +254,7 @@ def assign_clustered_groups(
     Output:
         - group_ids_pred: predicted group ids
     ##### Notice!
-    Here we use clusters and groups as the sub-level segmentations and grouped segmentations, respectively, in a standard clustering case! It also applies to a specific case where we want cluster "groups" into "interactions"
+    Here we name 'clusters' and 'groups' as the sub-level segmentations and grouped segmentations, respectively, in a standard clustering case! It also applies to a specific case where we want cluster "groups" into "interactions"
     '''
     # get the size of clusters
     size_of_clusters = torch.max(edge_index)+1
