@@ -238,3 +238,49 @@ def get_major_label(data_label, branch_index, index_list):
             mode(data_label[indexes,branch_index])[0][0]
         )
     return labels
+
+
+def assign_clustered_groups(
+        edge_index,
+        edge_pred,
+        device=None,
+        cuda=True
+):
+    '''
+    Function for assigning each cluster a reconstructed group id
+    Inputs:
+        - edge_index: edge indexes with shape of (2, N'). Rows are in [cluster_index_1, cluster_index_2]. Index correspond to index of batch_ids, clust_ids and group_ids. NOTE: First row of edge_index shall be ascending!
+        - edge_pred: prediction of edge weights in shape of (N', 2) with column ( score for unconnection, score for connectivity). Score range from 0 to 1 or -1 to 1 depending on the predictor type.
+    Output:
+        - group_ids_pred: predicted group ids
+    ##### Notice!
+    Here we use clusters and groups as the sub-level segmentations and grouped segmentations, respectively, in a standard clustering case! It also applies to a specific case where we want cluster "groups" into "interactions"
+    '''
+    # get the size of clusters
+    size_of_clusters = torch.max(edge_index)+1
+    # get the index of predicted, which is also equivalent to whether this edge connect (0 for no, 1 for yes) under current data structure
+    _, pred_inds = torch.max(edge_pred, 1)
+    selected_inds = torch.nonzero(pred_inds, dtype=torch.long)
+    ##############################
+    ## Based on pred_inds group the clusters, give them pseudo group ids
+    ##############################
+    group_ids_pred = np.ones(size_of_clusters, dtype=np.int) * (-1)
+    group_ids_pred_unique_list = []
+    for clust_index_1, clust_index_2 in edge_index.t()[selected_inds]:
+        if group_ids_pred[clust_index_1]>0 and group_ids_pred[clust_index_2]>0:
+            pass
+        elif group_ids_pred[clust_index_1]>0:
+            group_ids_pred[clust_index_2]=group_ids_pred[clust_index_1]
+        elif group_ids_pred[clust_index_2]>0:
+            group_ids_pred[clust_index_1]=group_ids_pred[clust_index_2]
+        else:
+            group_ids_pred[clust_index_1]=len(group_ids_pred_unique_list)
+            group_ids_pred[clust_index_2]=len(group_ids_pred_unique_list)
+            group_ids_pred_unique_list.append(len(group_ids_pred_unique_list))
+    # return
+    group_ids_pred = torch.tensor(group_ids_pred, dtype=torch.long, requires_grad=False)
+    if not device is None:
+        group_ids_pred = group_ids_pred.to(device)
+    elif cuda:
+        group_ids_pred = group_ids_pred.cuda()
+    return group_ids_pred
