@@ -116,7 +116,7 @@ def group_bipartite(batch_ids, group_ids, device=None, cuda=True, return_id=Fals
     ret = []
     for i in range(group_ids.shape[0]):
         for j in range(i, group_ids.shape[0]):
-            if batch_ids[i]!=batch_ids[j]:
+            if batch_ids[i]==batch_ids[j]:
                 if not return_id:
                     ret.append([i,j])
                 else:
@@ -132,4 +132,6 @@ def group_bipartite(batch_ids, group_ids, device=None, cuda=True, return_id=Fals
         ret = ret.to(device)
     elif cuda:
         ret = ret.cuda()
+    else:
+        ret = ret.cpu().detach().numpy()
     return ret
