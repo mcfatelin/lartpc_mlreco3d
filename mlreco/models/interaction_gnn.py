@@ -229,7 +229,11 @@ class InteractionClusteringLoss(torch.nn.Module):
                 cuda=False,
             )
 
+            # NOTE: a dirty solution for mitigating same-interaction-id problem in evaluation
+            #       Currently ARI, AMI, SBD and purity_efficiency seem not take bid input
+            #       The solution here is to add np.max(interaction_ids)*batch_ids so that the new groud truth label can be unique
             interaction_ids = interaction_ids.cpu().detach().numpy()
+            interaction_ids += batch_ids.cpu().detach().numpy() * np.max(interaction_ids)
             # calculate the scores, efficiencies and purities
             ari += ARI(interaction_ids_pred, interaction_ids)
             ami += AMI(interaction_ids_pred, interaction_ids)
