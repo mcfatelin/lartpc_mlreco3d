@@ -1,5 +1,6 @@
 # Defines network incidence matrices
 import numpy as np
+import torch
 
 def complete_graph(batches, dist=None, max_dist=-1):
     """

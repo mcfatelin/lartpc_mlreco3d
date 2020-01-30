@@ -1,7 +1,9 @@
 # Defines inputs to the GNN networks
 import numpy as np
 import scipy as sp
-from mlreco.utils.gnn.cluster import get_cluster_voxels, get_cluster_features, get_cluster_dirs, group_bipartite
+from mlreco.utils.gnn.cluster import get_cluster_voxels, get_cluster_features, get_cluster_dirs
+from mlreco.utils.gnn.network import group_bipartite
+import torch
 
 def cluster_vtx_features(data, clusts, delta=0.0):
     """
@@ -139,7 +141,7 @@ def edge_feature(data, i, j):
     return np.concatenate([B, disp])
 
 
-def cluster_edge_features(data, edge_index):
+def edge_features(data, edge_index):
     """
     Function that returns a tensor of edge features for each of the
     edges connecting voxels in the graph.

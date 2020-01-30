@@ -12,6 +12,7 @@ def model_dict():
     from . import cluster_chain_gnn
     #from . import cluster_mst_gnn
     from . import uresnet_clustering
+    from . import interaction_gnn
 
     # Make some models available (not all of them, e.g. PPN is not standalone)
     models = {

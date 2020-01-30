@@ -122,14 +122,14 @@ class InteractionModel(torch.nn.Module):
         if (not self.node_feature_input) and (not self.edge_feature_input):
             # both node and edge features are extracted by human-supervised functions
             edge_index = group_bipartite(batch_ids, group_ids, device=device)
-            x = cluster_vtx_features(label, groups, device=device)
-            e = cluster_edge_features(label, groups, edge_index, device=device)
+            x = cluster_vtx_features(label.cpu().detach().numpy(), groups)
+            e = cluster_edge_features(label.cpu().detach().numpy(), groups, edge_index.cpu().detach().numpy())
         elif (self.node_feature_input) and (not self.edge_feature_input):
             # node features are extracted by CNN encoder
             # edge features are still extracted by human-supervised function
             edge_index = group_bipartite(batch_ids, group_ids, device=device)
             x = get_input_node_features(node_feat_data, batch_ids, group_ids, device=device)
-            e = cluster_edge_features(label, groups, edge_index, device=device)
+            e = cluster_edge_features(label.cpu().detach().numpy(), groups, edge_index.cpu().detach().numpy())
         elif (self.node_feature_input) and (self.edge_feature_input):
             # both node and edge features are from CNN encoder extraction
             x = get_input_node_features(node_feat_data, batch_ids, group_ids, device=device)
@@ -140,6 +140,12 @@ class InteractionModel(torch.nn.Module):
 
         # Convert the the batch IDs to a torch tensor to pass to torch
         batch_ids = torch.tensor(batch_ids).to(device)
+
+        # Make sure x and e are torch tensor
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x).to(device)
+        if not isinstance(e, torch.Tensor):
+            e = torch.tensor(e).to(device)
 
         # Pass through the model, get output
         out = self.edge_predictor(x, edge_index, e, batch_ids)
