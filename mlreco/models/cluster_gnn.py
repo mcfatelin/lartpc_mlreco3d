@@ -245,7 +245,7 @@ class EdgeChannelLoss(torch.nn.Module):
             # Increment the loss, balance classes if requested
             if self.balance_classes:
                 counts = torch.tensor([0,0])
-                val, Counts = torch.unique(edge_assn, return_counts=True)[1]
+                val, Counts = torch.unique(edge_assn, return_counts=True)
                 counts[val] = Counts
                 weights = np.array([float(counts[k])/len(edge_assn) for k in range(2)])
                 for k in range(2):
