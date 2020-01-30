@@ -142,3 +142,46 @@ def process_group_data(data_grp, data_img):
     inds = filter_group_data(data_grp_np, data_img_np)
 
     return data_grp[inds,:]
+
+
+def get_interaction_id(particle_v, np_features):
+    '''
+    A function to sort out interaction ids.
+    Note that this assumes cluster_id==particle_id.
+    Inputs:
+        - particle_v vector: larcv::EventParticle.as_vector()
+        - np_features: a numpy array with the shape (n,4) where 4 is voxel value,
+        cluster id, group id, and semantic type respectively
+    Outputs:
+        - interaction_ids: a numpy array with the shape (n,)
+    '''
+    # initiate the interaction_ids, setting all ids to -1 (as unknown) by default
+    interaction_ids = (-1.)*np.ones(np_features.shape[0])
+    ##########################################################################
+    # sort out the interaction ids using the information of ancestor vtx info
+    ##########################################################################
+    # get the particle ancestor vtx array first
+    ancestor_vtxs = []
+    for particle in particle_v:
+        ancestor_vtx = [
+            particle.ancestor_x(),
+            particle.ancestor_y(),
+            particle.ancestor_z(),
+        ]
+        ancestor_vtxs.append(ancestor_vtx)
+    ancestor_vtxs = np.asarray(ancestor_vtxs)
+    # get the list of unique interaction vertexes
+    interaction_vtx_list = np.unique(
+        ancestor_vtxs,
+        axis=0,
+    ).tolist()
+    # loop over clust_ids
+    for clust_id in range(particle_v.size()):
+        # get the interaction id from the unique list (index is the id)
+        interaction_id = interaction_vtx_list.index(
+            ancestor_vtxs[clust_id].tolist()
+        )
+        # update the interaction_ids array
+        clust_inds = np.where(np_features[:,1]==clust_id)[0]
+        interaction_ids[clust_inds] = interaction_id
+    return interaction_ids
