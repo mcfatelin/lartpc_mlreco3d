@@ -44,6 +44,7 @@ class EdgeModel(torch.nn.Module):
         self.node_type = self.model_config.get('node_type', 0)
         self.node_min_size = self.model_config.get('node_min_size', -1)
         self.node_encoder = self.model_config.get('node_encoder', 'basic')
+        self.edge_encoder = self.model_config.get('edge_encoder', 'basic')
 
         # Choose what type of network to use
         self.network = self.model_config.get('network', 'complete')
@@ -133,9 +134,14 @@ class EdgeModel(torch.nn.Module):
         elif self.node_encoder == 'cnn':
             raise NotImplementedError('CNN encoder not yet implemented...')
         else:
-            raise ValueError('Node encoder not recognized: '+self.node_encoding) 
+            raise ValueError('Node encoder not recognized: '+self.node_encoder)
 
-        e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
+        if self.edge_encoder == 'basic':
+            e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
+        elif self.edge_encoder == 'cnn':
+            raise NotImplementedError('CNN encoder not yet implemented...')
+        else:
+            raise ValueError('Edge encoder not recognized: '+self.edge_encoder)
 
         # Bring edge_index and batch_ids to device
         index = torch.tensor(edge_index, device=device, dtype=torch.long)
@@ -232,7 +238,7 @@ class EdgeChannelLoss(torch.nn.Module):
             else:
                 graph = graph[i].detach().cpu().numpy()
                 true_edge_index = get_fragment_edges(graph, clust_ids, batch_ids)
-                edge_assn = edge_assignment_from_graph(edge_index, true_edge_undex)
+                edge_assn = edge_assignment_from_graph(edge_index, true_edge_index)
 
             edge_assn = torch.tensor(edge_assn, device=edge_pred.device, dtype=torch.long, requires_grad=False).view(-1)
 
