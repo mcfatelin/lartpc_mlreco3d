@@ -58,7 +58,7 @@ class EdgeModel(torch.nn.Module):
         self.edge_predictor = edge_model(self.model_config.get('model_cfg'))
 
     @staticmethod
-    def default_return(device):
+    def default_return(device, ):
         """
         Default return when no valid node is found in the input data.
 
@@ -103,9 +103,21 @@ class EdgeModel(torch.nn.Module):
         else:
             clusts = form_clusters(cluster_label, self.node_min_size)
 
+        # return if no clusters found
+        # or there's only one node
+        if len(clusts)<1:
+            return self.default_return(device)
+
         # Get the batch, cluster and group id of each cluster
         batch_ids = get_cluster_batch(cluster_label, clusts)
         clust_ids = get_cluster_label(cluster_label, clusts)
+
+        # return if there's only one node
+        if len(clusts)==1:
+            outs =self.default_return(device)
+            outs['clust_ids'] = [clust_ids]
+            outs['batch_ids'] = [batch_ids]
+            return outs
 
         # Form the requested network
         dist_mat = None
@@ -218,7 +230,7 @@ class EdgeChannelLoss(torch.nn.Module):
             # If the input did not have any node, proceed
             if not len(out['clust_ids'][i]):
                 if ngpus == 1:
-                    total_loss = torch.tensor(0., requires_grad=True, device=edge_pred.device)
+                    total_loss = torch.tensor(0., requires_grad=True, device=out['edge_pred'][i].device)
                 ngpus = max(1, ngpus-1)
                 continue
 
@@ -243,7 +255,7 @@ class EdgeChannelLoss(torch.nn.Module):
             edge_assn = torch.tensor(edge_assn, device=edge_pred.device, dtype=torch.long, requires_grad=False).view(-1)
 
             # Increment the loss, balance classes if requested
-            if self.balance_classes:
+            if self.balance_classes and len(clusts)>1:
                 _, counts = torch.unique(edge_assn, return_counts=True)
                 if counts.size()[0]==1:
                     total_loss += self.lossfn(edge_pred, edge_assn)
@@ -251,15 +263,24 @@ class EdgeChannelLoss(torch.nn.Module):
                     weights = np.array([float(counts[k])/len(edge_assn) for k in range(2)])
                     for k in range(2):
                         total_loss += (1./weights[k])*self.lossfn(edge_pred[edge_assn==k], edge_assn[edge_assn==k])
-            else:
+            elif len(clusts)>1:
                 total_loss += self.lossfn(edge_pred, edge_assn)
+            else:
+                pseudo_edge_pred = torch.tensor([[0,1.],], device=edge_pred.device, dtype=torch.float, requires_grad=False)
+                pseudo_edge_assn = torch.tensor([1], device=edge_pred.device, dtype=torch.long, requires_grad=False).view(-1)
+                total_loss += self.lossfn(pseudo_edge_pred, pseudo_edge_assn)
 
             # Compute accuracy of assignment (fraction of correctly assigned edges)
-            total_acc += torch.sum(torch.argmax(edge_pred, dim=1) == edge_assn).float()/edge_assn.shape[0]
+            if len(clusts)>1:
+                total_acc += torch.sum(torch.argmax(edge_pred, dim=1) == edge_assn).float()/edge_assn.shape[0]
+            else:
+                total_acc += 1.
 
             # Compute clustering accuracy metrics
             node_assn = node_assignment_group(group_ids, batch_ids)
-            node_pred = node_assignment(edge_index, torch.argmax(edge_pred, dim=1).detach().cpu().numpy(), len(clust_ids))
+            node_pred = node_assn
+            if len(clusts)>1:
+                node_pred = node_assignment(edge_index, torch.argmax(edge_pred, dim=1).detach().cpu().numpy(), len(clust_ids))
             ari, ami, sbd, pur, eff = clustering_metrics(clusts, node_assn, node_pred)
             total_ari += ari
             total_ami += ami
