@@ -150,11 +150,7 @@ class EdgeModel(torch.nn.Module):
         if self.node_encoder == 'basic':
             x = torch.tensor(cluster_vtx_features(cluster_label, clusts), device=device, dtype=torch.float)
         elif self.node_encoder == 'cnn':
-            x = torch.tensor(
-                cluster_vtx_features_encoder(self.encoder, cluster_label, clusts, device=device),
-                device=device,
-                dtype=torch.float
-            )
+            x = cluster_vtx_features_encoder(self.encoder, cluster_label, clusts, device=device)
         else:
             raise ValueError('Node encoder not recognized: '+self.node_encoder)
 

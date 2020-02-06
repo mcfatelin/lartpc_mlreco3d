@@ -291,7 +291,7 @@ def get_cluster_features_encoder(encoder, data, clusts, device):
         data (np.ndarray)    : (N,8) [x, y, z, batchid, value, id, groupid, shape]
         clusts ([np.ndarray]): (C) List of arrays of voxel IDs in each cluster
     Returns:
-        np.ndarray: (C,16) tensor of cluster features (center, orientation, direction, size)
+        np.ndarray: (C, X) tensor of cluster features extracted using CNN encoder
     '''
     feats = []
     for c in clusts:
@@ -303,10 +303,10 @@ def get_cluster_features_encoder(encoder, data, clusts, device):
                     device=device,
                     dtype=torch.float
                 )
-            ).detach().cpu().numpy()
+            )
         )
 
 
-    return np.vstack(feats)
+    return torch.cat(feats,0)
 
 
