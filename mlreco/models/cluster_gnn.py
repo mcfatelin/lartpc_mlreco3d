@@ -59,7 +59,9 @@ class EdgeModel(torch.nn.Module):
         self.edge_predictor = edge_model(self.model_config.get('model_cfg'))
 
         # Construct the encoder
-        self.encoder = EncoderModel(cfg)
+        self.encoder = None
+        if self.node_encoder=='cnn' or self.edge_encoder=='cnn':
+            self.encoder = EncoderModel(cfg)
 
     @staticmethod
     def default_return(device, ):
