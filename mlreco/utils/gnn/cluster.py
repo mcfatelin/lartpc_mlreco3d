@@ -310,3 +310,30 @@ def get_cluster_features_encoder(encoder, data, clusts, device):
     return torch.cat(feats,0)
 
 
+def get_edge_features_encoder(encoder, data, clusts, edge_index, device):
+    '''
+    Extract edge features using CNN encoder
+    Args:
+        encoder (EncoderModel): CNN encoder
+        data (np.ndarray)    : (N,8) [x, y, z, batchid, value, id, groupid, shape]
+        clusts ([np.ndarray]): (C) List of arrays of voxel IDs in each cluster
+        edge_index(np.ndarray): (2, K) array of indexes of nodes for pairing
+    Returns:
+        np.ndarray: (C, X) tensor of edge features extracted using CNN encoder
+    '''
+    feats = []
+    for (index1, index2) in edge_index:
+        c1 = clusts[index1]
+        c2 = clusts[index2]
+        # Get the feature vector from encoder
+        feats.append(
+            encoder(
+                torch.tensor(
+                    torch.cat((data[c1,:5], data[c2,:5]), 0),
+                    device=device,
+                    dtype=torch.float
+                )
+            )
+        )
+
+    return torch.cat(feats, 0)

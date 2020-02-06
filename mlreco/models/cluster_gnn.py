@@ -7,7 +7,7 @@ import numpy as np
 from .gnn import edge_model_construct
 from mlreco.utils.gnn.cluster import form_clusters, reform_clusters, get_cluster_batch, get_cluster_label, get_cluster_group, get_cluster_primary
 from mlreco.utils.gnn.network import complete_graph, delaunay_graph, mst_graph, bipartite_graph, inter_cluster_distance, get_fragment_edges
-from mlreco.utils.gnn.data import cluster_vtx_features, cluster_vtx_features_encoder, cluster_edge_features
+from mlreco.utils.gnn.data import cluster_vtx_features, cluster_vtx_features_encoder, cluster_edge_features, cluster_edge_features_encoder
 from mlreco.utils.gnn.evaluation import edge_assignment, edge_assignment_from_graph, node_assignment, node_assignment_group, clustering_metrics
 from mlreco.models.encoder import EncoderModel
 
@@ -157,7 +157,7 @@ class EdgeModel(torch.nn.Module):
         if self.edge_encoder == 'basic':
             e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
         elif self.edge_encoder == 'cnn':
-            raise NotImplementedError('CNN encoder not yet implemented...')
+            e = cluster_edge_features_encoder(self.edge_encoder, cluster_label, clusts, edge_index, device=device)
         else:
             raise NotImplementedError('Edge encoder not recognized: '+self.edge_encoder)
 
