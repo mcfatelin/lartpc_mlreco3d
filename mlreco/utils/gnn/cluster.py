@@ -1,5 +1,6 @@
 # Defines cluster formation and feature extraction
 import numpy as np
+import torch
 
 def form_clusters(data, min_size=-1):
     """
@@ -121,7 +122,6 @@ def get_cluster_voxels(data, clust):
         np.ndarray: (Mx3) tensor of voxel coordinates
     """
     return data[clust, :3]
-
 
 def get_cluster_centers(data, clusts):
     """
@@ -281,4 +281,32 @@ def get_cluster_features(data, clusts, delta=0.0):
         feats.append(np.concatenate((center, B.flatten(), v0, [len(c)])))
 
     return np.vstack(feats)
+
+
+def get_cluster_features_encoder(encoder, data, clusts, device):
+    '''
+    Extract cluster features using CNN encoder
+    Args:
+        encoder (EncoderModel): CNN encoder
+        data (np.ndarray)    : (N,8) [x, y, z, batchid, value, id, groupid, shape]
+        clusts ([np.ndarray]): (C) List of arrays of voxel IDs in each cluster
+    Returns:
+        np.ndarray: (C,16) tensor of cluster features (center, orientation, direction, size)
+    '''
+    feats = []
+    for c in clusts:
+        # Get the feature vector from encoder
+        feats.append(
+            encoder(
+                torch.tensor(
+                    data[c, :5],
+                    device=device,
+                    dtype=torch.float
+                )
+            ).detach().cpu().numpy()
+        )
+
+
+    return np.vstack(feats)
+
 

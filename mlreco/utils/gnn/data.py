@@ -1,6 +1,6 @@
 # Defines inputs to the GNN networks
 import numpy as np
-from mlreco.utils.gnn.cluster import get_cluster_voxels, get_cluster_features, get_cluster_dirs
+from mlreco.utils.gnn.cluster import get_cluster_voxels, get_cluster_features, get_cluster_dirs, get_cluster_features_encoder
 
 def cluster_vtx_features(data, clusts, delta=0.0):
     """
@@ -16,6 +16,8 @@ def cluster_vtx_features(data, clusts, delta=0.0):
     """
     return get_cluster_features(data, clusts, delta)
 
+def cluster_vtx_features_encoder(encoder, data, clusts, device='cpu'):
+    return get_cluster_features_encoder(encoder, data, clusts, device)
 
 def cluster_vtx_dirs(data, cs, delta=0.0):
     """

@@ -7,8 +7,9 @@ import numpy as np
 from .gnn import edge_model_construct
 from mlreco.utils.gnn.cluster import form_clusters, reform_clusters, get_cluster_batch, get_cluster_label, get_cluster_group, get_cluster_primary
 from mlreco.utils.gnn.network import complete_graph, delaunay_graph, mst_graph, bipartite_graph, inter_cluster_distance, get_fragment_edges
-from mlreco.utils.gnn.data import cluster_vtx_features, cluster_edge_features
+from mlreco.utils.gnn.data import cluster_vtx_features, cluster_vtx_features_encoder, cluster_edge_features
 from mlreco.utils.gnn.evaluation import edge_assignment, edge_assignment_from_graph, node_assignment, node_assignment_group, clustering_metrics
+from mlreco.models.encoder import EncoderModel
 
 class EdgeModel(torch.nn.Module):
     """
@@ -56,6 +57,9 @@ class EdgeModel(torch.nn.Module):
 
         # Construct the model
         self.edge_predictor = edge_model(self.model_config.get('model_cfg'))
+
+        # Construct the encoder
+        self.encoder = EncoderModel(cfg)
 
     @staticmethod
     def default_return(device, ):
@@ -143,17 +147,25 @@ class EdgeModel(torch.nn.Module):
         # Obtain node and edge features
         if self.node_encoder == 'basic':
             x = torch.tensor(cluster_vtx_features(cluster_label, clusts), device=device, dtype=torch.float)
+        elif self.node_encoder == 'none':
+            x = torch.tensor((np.zeros(len(clusts),1)), device=device, dtype=torch.float)
         elif self.node_encoder == 'cnn':
-            raise NotImplementedError('CNN encoder not yet implemented...')
+            x = torch.tensor(
+                cluster_vtx_features_encoder(self.encoder, cluster_label, clusts, device=device),
+                device=device,
+                dtype=torch.float
+            )
         else:
             raise ValueError('Node encoder not recognized: '+self.node_encoder)
 
         if self.edge_encoder == 'basic':
             e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
+        elif self.edge_encoder == 'none':
+            e = torch.tensor(np.zeros((edge_index.shape[1],1)), device=device, dtype=torch.float)
         elif self.edge_encoder == 'cnn':
             raise NotImplementedError('CNN encoder not yet implemented...')
         else:
-            raise ValueError('Edge encoder not recognized: '+self.edge_encoder)
+            raise NotImplementedError('Edge encoder not recognized: '+self.edge_encoder)
 
         # Bring edge_index and batch_ids to device
         index = torch.tensor(edge_index, device=device, dtype=torch.long)
@@ -166,6 +178,7 @@ class EdgeModel(torch.nn.Module):
                 'clust_ids':[clust_ids],
                 'batch_ids':[batch_ids],
                 'edge_index':[edge_index]}
+
 
 
 class EdgeChannelLoss(torch.nn.Module):
