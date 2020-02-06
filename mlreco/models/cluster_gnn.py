@@ -149,8 +149,6 @@ class EdgeModel(torch.nn.Module):
         # Obtain node and edge features
         if self.node_encoder == 'basic':
             x = torch.tensor(cluster_vtx_features(cluster_label, clusts), device=device, dtype=torch.float)
-        elif self.node_encoder == 'none':
-            x = torch.tensor((np.zeros(len(clusts),1)), device=device, dtype=torch.float)
         elif self.node_encoder == 'cnn':
             x = torch.tensor(
                 cluster_vtx_features_encoder(self.encoder, cluster_label, clusts, device=device),
@@ -162,8 +160,6 @@ class EdgeModel(torch.nn.Module):
 
         if self.edge_encoder == 'basic':
             e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
-        elif self.edge_encoder == 'none':
-            e = torch.tensor(np.zeros((edge_index.shape[1],1)), device=device, dtype=torch.float)
         elif self.edge_encoder == 'cnn':
             raise NotImplementedError('CNN encoder not yet implemented...')
         else:
