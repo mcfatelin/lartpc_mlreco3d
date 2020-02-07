@@ -157,7 +157,7 @@ class EdgeModel(torch.nn.Module):
         if self.edge_encoder == 'basic':
             e = torch.tensor(cluster_edge_features(cluster_label, clusts, edge_index), device=device, dtype=torch.float)
         elif self.edge_encoder == 'cnn':
-            e = cluster_edge_features_encoder(self.edge_encoder, cluster_label, clusts, edge_index, device=device)
+            e = cluster_edge_features_encoder(self.encoder, cluster_label, clusts, edge_index, device=device)
         else:
             raise NotImplementedError('Edge encoder not recognized: '+self.edge_encoder)
 

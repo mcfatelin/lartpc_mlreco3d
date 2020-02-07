@@ -292,20 +292,22 @@ def get_cluster_features_encoder(encoder, data, clusts, device):
         clusts ([np.ndarray]): (C) List of arrays of voxel IDs in each cluster
     Returns:
         np.ndarray: (C, X) tensor of cluster features extracted using CNN encoder
+    # WARNING: It doesn't support batching now, batch id set to 0
     '''
     feats = []
     for c in clusts:
         # Get the feature vector from encoder
+        input_data = data[c,:5]
+        input_data[:,3]=0
         feats.append(
             encoder(
-                torch.tensor(
-                    data[c, :5],
-                    device=device,
-                    dtype=torch.float
-                )
+                    torch.tensor(
+                        input_data,
+                        device=device,
+                        dtype=torch.float
+                    )
             )
         )
-
 
     return torch.cat(feats,0)
 
@@ -320,19 +322,22 @@ def get_edge_features_encoder(encoder, data, clusts, edge_index, device):
         edge_index(np.ndarray): (2, K) array of indexes of nodes for pairing
     Returns:
         np.ndarray: (C, X) tensor of edge features extracted using CNN encoder
+    # WARNING: It doesn't support batching now, batch id set to 0
     '''
     feats = []
-    for (index1, index2) in edge_index:
+    for index1, index2 in edge_index.T:
         c1 = clusts[index1]
         c2 = clusts[index2]
+        cat_data = np.concatenate((data[c1,:5], data[c2,:5]), axis=0)
         # Get the feature vector from encoder
+        cat_data[:,3] = 0 # set all batch id to zero, otherwise fails
         feats.append(
             encoder(
-                torch.tensor(
-                    torch.cat((data[c1,:5], data[c2,:5]), 0),
-                    device=device,
-                    dtype=torch.float
-                )
+                    torch.tensor(
+                        cat_data,
+                        device=device,
+                        dtype=torch.float
+                    )
             )
         )
 
