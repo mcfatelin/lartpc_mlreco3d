@@ -30,7 +30,7 @@ class GAN(torch.nn.Module):
         self.generator     = gan_generator_construct(cfg)
         self.discriminator = gan_discriminator_construct(cfg)
 
-    def forward(self, data):
+    def forward(self, input):
         """
         Args:
             data ([torch.tensor]): (N, >=6) [x, y, z, batchid, value, label (binary)]
@@ -39,4 +39,12 @@ class GAN(torch.nn.Module):
                 'generated_data': (N, >=6) [x, y, z, batchid, value, label (binary)] if label=0, return the same data as input
                 'label_pred': predicted label by discriminator
         """
+        # Get the input
+        data = input[0]
+        device = data.device
 
+        # Get the image and label
+        image = data[:,:5] # [tensor]: (N,5) -> [x,y,z,batchid,value]
+        label = data[:,5] # label whether it is "simulation" (0) or "data" (1)
+
+        #
