@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from mlreco.utils import local_cdist
 from mlreco.utils.gnn.data import cluster_vtx_features, cluster_vtx_features_extended
+from mlreco.utils.gnn.cluster import find_start_point
 
 class ClustGeoNodeEncoder(torch.nn.Module):
     """
@@ -19,6 +20,13 @@ class ClustGeoNodeEncoder(torch.nn.Module):
         # If true, the output feature number will be 19
         self.more_feats = model_config.get('more_feats', False)
 
+        # flag for whether to turn on the adjusting the direction
+        # the direction from PCA is actually directionless
+        # It can be the particle outgoing direction but can also be the inversed
+        # If this flag is on, it will adjust the direction feature to be always the outgoing direction of particle
+        self.adjust_node_direction = model_config.get('adjust_node_direction', False)
+
+
     def forward(self, data, clusts, delta=0.):
 
         # Get the voxel set
@@ -34,10 +42,10 @@ class ClustGeoNodeEncoder(torch.nn.Module):
         # If numpy is to be used, bring data to cpu, pass through function
         if self.use_numpy:
             if not self.more_feats:
-                return torch.tensor(cluster_vtx_features(voxels.detach().cpu().numpy(), clusts), dtype=voxels.dtype, device=voxels.device)
+                return torch.tensor(cluster_vtx_features(voxels.detach().cpu().numpy(), clusts, whether_adjust_direction = self.adjust_node_direction), dtype=voxels.dtype, device=voxels.device)
             return torch.tensor(
                 np.concatenate(
-                    cluster_vtx_features(voxels.detach().cpu().numpy(), clusts),
+                    cluster_vtx_features(voxels.detach().cpu().numpy(), clusts, whether_adjust_direction=self.adjust_node_direction),
                     cluster_vtx_features_extended(values.detach().cpu().numpy(), sem_types.detach().cpu().numpy(), clusts),
                     axis=0
                 ),
@@ -102,6 +110,7 @@ class ClustGeoNodeEncoder(torch.nn.Module):
             # Get direction - look at direction of spread orthogonal to v[:,maxind]
             v0 = v[:,2]
 
+
             # Projection of x along v0
             x0 = x.mv(v0)
 
@@ -117,6 +126,14 @@ class ClustGeoNodeEncoder(torch.nn.Module):
 
             # Weight direction
             v0 = dirwt * v0
+
+            # If adjust the direction
+            if self.adjust_node_direction:
+                if torch.dot(
+                        x[find_start_point(x.detach().cpu().numpy())],
+                        v0
+                )>0:
+                    v0 = -v0
 
             # Append (center, B.flatten(), v0, size)
             if not self.more_feats:
