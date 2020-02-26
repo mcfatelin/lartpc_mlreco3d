@@ -33,11 +33,13 @@ class GAN(torch.nn.Module):
     def forward(self, input):
         """
         Args:
-            data ([torch.tensor]): (N, >=6) [x, y, z, batchid, value, label (binary)]. Label is "simulation" (1) or "data" (0). Label need to binary at the moment.
+            data ([torch.tensor]): (N, >=5) [x, y, z, batchid, value].
+            sim ([torch.tensor]): (M, >=5) [x, y, z, batchid, value].
+            Note: Total number of batches between data and sim shall be the same. We want to mimic data using sim.
         Returns:
             dict:
-                'generated_data': (N, >=6) [x, y, z, batchid, value, label (binary)] if label=0, return the same data as input
-                'label_pred_raw': predicted label by discriminator for original data.
+                'generated_data': (N, >=5) [x, y, z, batchid, value]
+                'pred_data': predicted scores for data
                 'batch_id_raw': The corresponding batch ids for label_pred_raw
                 'label_pred_gen': predicted label by discriminator for generated data.
                 'batch_id_gen': The corresponding batch ids for label_pred_gen. There can be batch ids missing, meaning they are simulations.
