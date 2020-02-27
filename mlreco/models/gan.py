@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 import numpy as np
 import torch
-
+from mlreco.utils.gan.data import filling_empty, shuffle_data
 
 class GAN(torch.nn.Module):
     """
@@ -18,6 +18,8 @@ class GAN(torch.nn.Module):
     model:
         name: gan
         modules:
+            shuffle_pairing: shuffle the pairing between data and sim in each batch, default False.
+            filling_empty:   whether to fill the empty data and sim using random data and sim in the batch. Default True for training.
             generator:
                 <uresnet config>
             discriminator:
@@ -30,6 +32,10 @@ class GAN(torch.nn.Module):
         self.generator     = gan_generator_construct(cfg)
         self.discriminator = gan_discriminator_construct(cfg)
 
+        # extra flags
+        self.shuffle_pairing    = cfg.get('shuffle_pairing', False)
+        self.filling_empty      = cfg.get('filling_empty', True)
+
     def forward(self, input):
         """
         Args:
@@ -38,38 +44,39 @@ class GAN(torch.nn.Module):
             Note: Total number of batches between data and sim shall be the same. We want to mimic data using sim.
         Returns:
             dict:
-                'generated_data': (N, >=5) [x, y, z, batchid, value]
-                'pred_data': predicted scores for data
-                'batch_id_raw': The corresponding batch ids for label_pred_raw
-                'label_pred_gen': predicted label by discriminator for generated data.
-                'batch_id_gen': The corresponding batch ids for label_pred_gen. There can be batch ids missing, meaning they are simulations.
+                'raw_data':   (N, >=5) [x, y, z, batchid, value]
+                'gen_data':   (N, >=5) [x, y, z, batchid, value]
+                'pred_data':  predicted scores for data, ordered by batch ids
+                'pred_gen':   predicted scores for generated data
         """
         # Get the input
         data = input[0]
+        sim  = input[1]
         device = data.device
+        if sim.device!=device:
+            raise ValueError('Input devices not consistent!')
 
-        # Get the indexes for data
-        inds_data = data[:,5].nonzero().view(-1)
+        # Filling empty
+        if self.filling_empty:
+            data = filling_empty(data)
+            sim  = filling_empty(sim)
 
-        # Get the indexes for simulation
-        inds_sim  = (data[:,5]==1).nonzero().view(-1)
+        # shuffle if needed
+        if self.shuffle_pairing:
+            sim = shuffle_data(sim)
 
         # Get the generated data
-        generated_data = self.generator(data[inds_data,:])
+        gen_data = self.generator(data)
 
-        # Get the prediction of label
-        label_pred_raw, batch_id_raw = self.discriminator(data)
-        label_pred_gen, batch_id_gen = self.discriminator(generated_data)
-
-        # concatenate the data
-        generated_data = torch.concat((data[inds_sim,:], generated_data),dim=0)
+        # Get the predictions
+        pred_data = self.discriminator(data)
+        pred_gen  = self.discriminator(gen_data)
 
         return {
-            'generated_data': [generated_data],
-            'label_pred_raw': [label_pred_raw],
-            'label_pred_gen': [label_pred_gen],
-            'batch_id_raw':   [batch_id_raw],
-            'batch_id_gen':   [batch_id_gen],
+            'raw_data':       [data],
+            'gen_data':       [gen_data],
+            'pred_data':      [pred_data],
+            'pred_gen':       [pred_gen],
         }
 
 
