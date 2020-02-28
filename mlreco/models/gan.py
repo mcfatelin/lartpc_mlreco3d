@@ -66,11 +66,20 @@ class GAN(torch.nn.Module):
             sim = shuffle_data(sim)
 
         # Get the generated data
-        gen_data = self.generator(data)
+        gen_data = self.generator(sim)
 
         # Get the predictions
         pred_data = self.discriminator(data)
         pred_gen  = self.discriminator(gen_data)
+
+        # Order the predictions
+        # first get batch ids for raw and gen data
+        batch_ids_raw = data.unique(sorted=False).flip(0)
+        batch_ids_gen = gen_data.unique(sorted=False).flip(0)
+
+        # Rearrange in ascending order
+        pred_data = pred_data[batch_ids_raw.argsort()]
+        pred_gen  = pred_gen[batch_ids_gen.argsort()]
 
         return {
             'raw_data':       [data],
@@ -91,6 +100,7 @@ class GANLoss(torch.nn.Module):
             loss            : <loss function: 'CE' or 'MM' (default 'CE')>
             reduction       : <loss reduction method: 'mean' or 'sum' (default 'sum')>
             gen_loss_factor : <factor before the pixel-wise loss for generator, default None>
+            loss_aggr     : <way of aggregating the two losses in gan, default "concat", optional "sum">
             generator:
                 <uresnet config>
             discriminator:
@@ -99,12 +109,11 @@ class GANLoss(torch.nn.Module):
     def __init__(self, cfg):
         super(GANLoss, self).__init__()
 
-        # Get the chain input parameters
-        chain_config = cfg['chain']
-
         # Set the loss
-        self.loss = chain_config.get('loss', 'CE')
-        self.reduction = chain_config.get('reduction', 'mean')
+        self.loss               = cfg.get('loss', 'CE')
+        self.reduction          = cfg.get('reduction', 'mean')
+        self.gen_loss_factor    = cfg.get('gen_loss_factor', None)
+        self.loss_aggr          = cfg.get('loss_aggr', 'concat')
 
         if self.loss == 'CE':
             self.lossfn = torch.nn.CrossEntropyLoss(reduction=self.reduction)
@@ -115,8 +124,11 @@ class GANLoss(torch.nn.Module):
         else:
             raise Exception('Loss not recognized: ' + self.loss)
 
+        if self.loss_aggr not in ['concat', 'sum']:
+            raise Exception('Not supported loss aggregation method! Shall be either \'concat\' or \'sum\' ')
 
-    def forward(self, out, clusters):
+
+    def forward(self, out, inputs):
         """
         Applies the requested loss for gan
         The goal is to discriminate between data and simulation as much as possible
@@ -124,12 +136,44 @@ class GANLoss(torch.nn.Module):
 
         Args:
             out (dict):
-                'generated_data': (N, >=6) [x, y, z, batchid, value, label (binary)] if label=0, return the same data as input
-                'label_pred_raw': predicted label by discriminator for original data.
-                'batch_id_raw': The corresponding batch ids for label_pred_raw
-                'label_pred_gen': predicted label by discriminator for generated data.
-                'batch_id_gen': The corresponding batch ids for label_pred_gen. There can be batch ids missing, meaning they are simulations.
-            clusters ([torch.tensor])     : (N,>=6) [x, y, z, batchid, value, label]
+                'raw_data':   (N, >=5) [x, y, z, batchid, value]
+                'gen_data':   (N, >=5) [x, y, z, batchid, value]
+                'pred_data':  predicted scores for data, ordered by batch ids
+                'pred_gen':   predicted scores for generated data
         Returns:
-            double: loss, accuracy
+            loss:     tensor (2) or double
+            accuracy: double
+        NOTE: Currently it doesn't support multi-GPU
         """
+        device = inputs[0][0].device
+        total_loss, total_acc = 0, 0.
+        if self.loss_aggr=='concat':
+            total_loss = torch.tensor([0., 0.], requires_grad=True, device=device)
+        for i in range(len(inputs)):
+            # Get the predictions
+            pred_raw = out['pred_data'][i]
+            pred_gen = out['pred_gen'][i]
+
+            # Loss 1: discriminator loss
+            loss1 = -(pred_raw.log() + torch.log(1-pred_gen)).mean()
+
+            # Loss 2: generator loss
+            loss2 = (torch.log(1-pred_gen)).mean()
+
+            # Accuracy
+            acc = len(pred_raw[pred_raw>0.5])/len(pred_raw) + len(pred_gen[pred_gen<0.5])/len(pred_gen)
+
+            # aggregate to total
+            total_acc += acc
+            if self.loss_aggr=='concat':
+                total_loss += torch.cat([loss1,loss2])
+                total_loss.retain_grad()
+            else:
+                total_loss += loss1 + loss2
+        return {
+            'accuracy': total_acc/len(inputs),
+            'loss':     total_loss/len(inputs),
+        }
+
+
+

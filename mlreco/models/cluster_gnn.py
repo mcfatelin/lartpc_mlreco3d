@@ -243,11 +243,6 @@ class EdgeChannelLoss(torch.nn.Module):
             if 'edge_pred' not in out:
                 continue
 
-            # # if merge_batch, set batch ids to zero
-            # # also make sure no overlap between interactions
-            # if self.merge_batch:
-            #     clusters[i] = merge_batch(clusters[i], self.merge_batch_size)
-
             # Get the list of batch ids, loop over individual batches
             batches = clusters[i][:,3]
             nbatches = len(batches.unique())
