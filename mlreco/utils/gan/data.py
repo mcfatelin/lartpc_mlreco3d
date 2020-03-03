@@ -59,4 +59,47 @@ def shuffle_data(data):
         data[inds,3] = shuffled_batch_id
     return data
 
+def form_batches(data):
+    '''
+    Function to for list of indexes (batches)
+    Input:
+        - data: (tensor) (N, >=5) [x, y, z, batchid, value]
+    Output:
+        - batches: (list) of indexes (torch.tensor)
+    '''
+    batches = []
+    for batch_id in data[:,3].unique():
+        batches.append(
+            torch.nonzero(
+                data[:,3]==batch_id,
+                device=data.device,
+                type=torch.long
+            ).view(-1)
+        )
+    return batches
+
+def image_difference_score(raw_data, gen_data, image_size):
+    '''
+    Function for giving the score for how much different the gen_data is compared to raw_data. Batching is allowed. Output score will be the average of batches.
+
+    Inputs:
+        - raw_data: (tensor) (N, >=5) [x, y, z, batchid, value]
+        - gen_data: (tensor) (N, >=5) [x, y, z, batchid, value]
+        - image_size: (int) size of image
+    Outputs:
+        - score: (float)
+    '''
+    # form batches
+    raw_batches = form_batches(raw_data)
+    gen_batches = form_batches(gen_data)
+    # Loop over batch to get scores
+    score = []
+    for raw_b, gen_b in zip(raw_batches, gen_batches):
+        # Get the maximum of raw
+        raw_max = raw_data[raw_b,4].max()
+        # change to numpy
+        batch_raw_data = raw_data[raw_b,:].clone().cpu().detach().numpy()
+        batch_gen_data = gen_data[gen_b,:].clone().cpu().detach().numpy()
+        # Get voxel indexes where raw and gen share
+        inds_share = np.
 

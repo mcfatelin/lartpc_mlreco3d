@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 import numpy as np
 import torch
-from mlreco.utils.gan.data import filling_empty, shuffle_data
+from mlreco.utils.gan.data import filling_empty, shuffle_data, image_difference_score
 
 class GAN(torch.nn.Module):
     """
@@ -74,8 +74,8 @@ class GAN(torch.nn.Module):
 
         # Order the predictions
         # first get batch ids for raw and gen data
-        batch_ids_raw = data.unique(sorted=False).flip(0)
-        batch_ids_gen = gen_data.unique(sorted=False).flip(0)
+        batch_ids_raw = data[:,3].unique(sorted=False).flip(0)
+        batch_ids_gen = gen_data[:,3].unique(sorted=False).flip(0)
 
         # Rearrange in ascending order
         pred_data = pred_data[batch_ids_raw.argsort()]
@@ -114,6 +114,7 @@ class GANLoss(torch.nn.Module):
         self.reduction          = cfg.get('reduction', 'mean')
         self.gen_loss_factor    = cfg.get('gen_loss_factor', None)
         self.loss_aggr          = cfg.get('loss_aggr', 'concat')
+        self.image_size         = cfg.get('image_size', 1024)
 
         if self.loss == 'CE':
             self.lossfn = torch.nn.CrossEntropyLoss(reduction=self.reduction)
@@ -159,6 +160,13 @@ class GANLoss(torch.nn.Module):
 
             # Loss 2: generator loss
             loss2 = (torch.log(1-pred_gen)).mean()
+            if self.gen_loss_factor!=None:
+                # add another loss to minimize the generator feature
+                loss2 += self.gen_loss_factor * image_difference_score(
+                    out['raw_data'][i],
+                    out['gen_data'][i],
+                    self.image_size
+                )
 
             # Accuracy
             acc = len(pred_raw[pred_raw>0.5])/len(pred_raw) + len(pred_gen[pred_gen<0.5])/len(pred_gen)
