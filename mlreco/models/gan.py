@@ -7,6 +7,7 @@ from __future__ import print_function
 import numpy as np
 import torch
 from mlreco.utils.gan.data import filling_empty, shuffle_data, image_difference_score
+from mlreco.model.gan import gan_construct
 
 class GAN(torch.nn.Module):
     """
@@ -21,16 +22,18 @@ class GAN(torch.nn.Module):
             shuffle_pairing: shuffle the pairing between data and sim in each batch, default False.
             filling_empty:   whether to fill the empty data and sim using random data and sim in the batch. Default True for training.
             generator:
+                name: 'uresnet'
                 <uresnet config>
             discriminator:
+                name: 'cnn'
                 <cnn_encoder config>
     """
     def __init__(self, cfg):
         super(GAN, self).__init__()
 
         # Initialize the generator & discriminator
-        self.generator     = gan_generator_construct(cfg)
-        self.discriminator = gan_discriminator_construct(cfg)
+        self.generator     = gan_construct(cfg['generator'])
+        self.discriminator = gan_construct(cfg['discriminator'])
 
         # extra flags
         self.shuffle_pairing    = cfg.get('shuffle_pairing', False)
@@ -77,7 +80,7 @@ class GAN(torch.nn.Module):
         batch_ids_raw = data[:,3].unique(sorted=False).flip(0)
         batch_ids_gen = gen_data[:,3].unique(sorted=False).flip(0)
 
-        # Rearrange in ascending order
+        # Secondly, rearrange in ascending order
         pred_data = pred_data[batch_ids_raw.argsort()]
         pred_gen  = pred_gen[batch_ids_gen.argsort()]
 
@@ -156,10 +159,10 @@ class GANLoss(torch.nn.Module):
             pred_gen = out['pred_gen'][i]
 
             # Loss 1: discriminator loss
-            loss1 = -(pred_raw.log() + torch.log(1-pred_gen)).mean()
+            loss1 = -(pred_raw[:,1].log() + torch.log(1-pred_gen[:,1])).mean()
 
             # Loss 2: generator loss
-            loss2 = (torch.log(1-pred_gen)).mean()
+            loss2 = (torch.log(1-pred_gen[:,1])).mean()
             if self.gen_loss_factor!=None:
                 # add another loss to minimize the generator feature
                 loss2 += self.gen_loss_factor * image_difference_score(
@@ -169,7 +172,7 @@ class GANLoss(torch.nn.Module):
                 )
 
             # Accuracy
-            acc = len(pred_raw[pred_raw>0.5])/len(pred_raw) + len(pred_gen[pred_gen<0.5])/len(pred_gen)
+            acc = len(pred_raw[pred_raw[:,1]>0.5,:])/len(pred_raw) + len(pred_gen[pred_gen[:,1]<0.5,:])/len(pred_gen)
 
             # aggregate to total
             total_acc += acc
