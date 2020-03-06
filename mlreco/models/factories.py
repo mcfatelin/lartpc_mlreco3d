@@ -24,7 +24,7 @@ def model_dict():
     from . import clusternet
     from . import clustercnn_adaptis
 
-    from . import gan
+    from . import gan_model
 
 
     # Make some models available (not all of them, e.g. PPN is not standalone)
@@ -85,7 +85,7 @@ def model_dict():
         # Cluster grouping GNN with MST
         #"cluster_mst_gnn": (cluster_mst_gnn.MSTEdgeModel, cluster_mst_gnn.MSTEdgeChannelLoss),
         # GAN
-        "gan": (gan.GAN, gan.GANLoss),
+        "gan": (gan_model.GAN, gan_model.GANLoss),
     }
     # "chain_gnn": (chain_gnn.Chain, chain_gnn.ChainLoss)
     return models
