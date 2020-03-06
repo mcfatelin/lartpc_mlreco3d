@@ -2,10 +2,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import numpy as np
+import time
 from larcv import larcv
 from mlreco.utils.ppn import get_ppn_info
 from mlreco.utils.dbscan import dbscan_types
 from mlreco.utils.groups import filter_duplicate_voxels, filter_nonimg_voxels
+from pprint import pprint
+np.random.seed(int(time.time()))
 
 def parse_sparse2d_meta(data):
     event_tensor2d = data[0]
@@ -353,36 +356,6 @@ def parse_cluster3d_full(data):
     return np_voxels, np_features
 
 
-def parse_cluster3d_reduced(data):
-    """
-    a function to retrieve clusters tensor
-    args:
-        length 2 array of larcv::EventClusterVoxel3D and larcv::EventParticle
-    return:
-        a numpy array with the shape (n,3) where 3 represents (x,y,z)
-        coordinate
-        a numpy array with the shape (n,1) where 1 is voxel value.
-    """
-    cluster_event = data[0]
-    particles_v = data[1].as_vector()
-    meta = cluster_event.meta()
-    num_clusters = cluster_event.as_vector().size()
-    clusters_voxels, clusters_features = [], []
-    for i in range(num_clusters):
-        cluster = cluster_event.as_vector()[i]
-        num_points = cluster.as_vector().size()
-        if num_points > 0:
-            x = np.empty(shape=(num_points,), dtype=np.int32)
-            y = np.empty(shape=(num_points,), dtype=np.int32)
-            z = np.empty(shape=(num_points,), dtype=np.int32)
-            value = np.empty(shape=(num_points,), dtype=np.float32)
-            larcv.as_flat_arrays(cluster,meta,x, y, z, value)
-            clusters_voxels.append(np.stack([x, y, z], axis=1))
-            clusters_features.append(np.column_stack([value]))
-    np_voxels   = np.concatenate(clusters_voxels, axis=0)
-    np_features = np.concatenate(clusters_features, axis=0)
-    return np_voxels, np_features
-
 def parse_cluster3d_full_extended(data):
     '''
     a function to retrieve clusters tensor
@@ -446,6 +419,7 @@ def parse_cluster3d_clean(data):
     grp_data = grp_data[inds2]
 
     return grp_voxels, grp_data
+
 
 def parse_cluster3d_clean_full(data):
     """
@@ -588,3 +562,68 @@ def parse_sparse3d_scn_scales(data):
         # scale_data = scale_data[perm]
         scales.append((scale_voxels, scale_data))
     return scales
+
+# temporary parsers just for demonstrating
+def parse_cluster3d_track(data):
+    """
+    Parser to just extract one track per event
+    Based simply on parse_cluster3d_full
+    args:
+        length 2 array of larcv::EventClusterVoxel3D and larcv::EventParticle
+    return:
+        a numpy array with the shape (n,3) where 3 represents (x,y,z)
+        coordinate
+        a numpy array with the shape (n,1) where 1 is voxel value.
+    """
+    # first get the parser output from parse_cluster3d_full
+    np_voxels, np_features = parse_cluster3d_full(data)
+    # randomly pick-up one particle which is track
+    inds_track = np.where(np_features[:,-1]==1)[0]
+    if len(inds_track)==0:
+        # no track in the event
+        # return an empty arrays
+        return np.zeros((0,4)), np.zeros((0,4))
+    pickedup_group_id = np.random.choice(
+        np.unique(np_features[inds_track,2]),
+        size=1
+    )
+    inds_target_group = np.where(np_features[:,2]==pickedup_group_id)[0]
+    return (
+        np_voxels[inds_target_group, :],
+        np.reshape(
+            np_features[inds_target_group, 0],
+            (-1,1)
+        )
+    )
+
+def parse_cluster3d_shower(data):
+    """
+    Parser to just extract one shower per event
+    Based simply on parse_cluster3d_full
+    args:
+        length 2 array of larcv::EventClusterVoxel3D and larcv::EventParticle
+    return:
+        a numpy array with the shape (n,3) where 3 represents (x,y,z)
+        coordinate
+        a numpy array with the shape (n,1) where 1 is voxel value.
+    """
+    # first get the parser output from parse_cluster3d_full
+    np_voxels, np_features = parse_cluster3d_full(data)
+    # randomly pick-up one particle which is shower
+    inds_shower = np.where(np_features[:,-1]==0)[0]
+    if len(inds_shower)==0:
+        # no shower in the event
+        # return an empty arrays
+        return np.zeros((0,4)), np.zeros((0,4))
+    pickedup_group_id = np.random.choice(
+        np.unique(np_features[inds_shower,-2]),
+        size=1
+    )
+    inds_target_group = np.where(np_features[:,-2]==pickedup_group_id)[0]
+    return (
+        np_voxels[inds_target_group, :],
+        np.reshape(
+            np_features[inds_target_group, 0],
+            (-1, 1)
+        )
+    )
