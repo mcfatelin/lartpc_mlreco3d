@@ -24,6 +24,8 @@ def model_dict():
     from . import clusternet
     from . import clustercnn_adaptis
 
+    from . import gan
+
 
     # Make some models available (not all of them, e.g. PPN is not standalone)
     models = {
@@ -82,6 +84,8 @@ def model_dict():
         "flashmatching": (flashmatching_model.FlashMatchingModel, torch.nn.CrossEntropyLoss(reduction='mean')),
         # Cluster grouping GNN with MST
         #"cluster_mst_gnn": (cluster_mst_gnn.MSTEdgeModel, cluster_mst_gnn.MSTEdgeChannelLoss),
+        # GAN
+        "gan": (gan.GAN, gan.GANLoss),
     }
     # "chain_gnn": (chain_gnn.Chain, chain_gnn.ChainLoss)
     return models

@@ -12,7 +12,7 @@ from mlreco.model.gan import gan_construct
 class GAN(torch.nn.Module):
     """
     Class for GAN.
-    Generator model using UResNet+MLP
+    Generator model using UResNet
     Discriminator model using Autoencoder+MLP
 
     for use in config:
