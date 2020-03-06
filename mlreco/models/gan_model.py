@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 import torch
 from mlreco.utils.gan.data import filling_empty, shuffle_data, image_difference_score
-from mlreco.models.gan import gan_construct
+from mlreco.models.gan.factories import gan_construct
 
 class GAN(torch.nn.Module):
     """

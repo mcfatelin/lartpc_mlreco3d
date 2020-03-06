@@ -23,7 +23,7 @@ class GANEncoderDiscriminator(torch.nn.Module):
         self.log_softmax = torch.nn.LogSoftmax(dim=1)
 
 
-    def forward(self, data)
+    def forward(self, data):
         """
         Input:
             - data: (tensor) (N,5) [x,y,z,batch_id,value]
