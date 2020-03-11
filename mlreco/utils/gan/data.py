@@ -47,11 +47,12 @@ def shuffle_data(data):
     # get the batch ids
     batch_ids = data[:,3].unique().view(-1).cpu().detach().numpy()
     # shuffle
-    shuffled_batch_ids = np.random.shuffle(batch_ids)
+    shuffled_batch_ids = batch_ids.copy()
+    np.random.shuffle(shuffled_batch_ids)
     # Loop over and replace the batch ids
     for batch_id, shuffled_batch_id in zip(
         batch_ids,
-        shuffle_batch_ids,
+        shuffled_batch_ids,
     ):
         selection = data[:,3]==batch_id
         inds = selection.nonzero().view(-1)

@@ -36,8 +36,8 @@ class GAN(torch.nn.Module):
         self.discriminator = gan_construct(cfg['discriminator'])
 
         # extra flags
-        self.shuffle_pairing    = cfg.get('shuffle_pairing', False)
-        self.filling_empty      = cfg.get('filling_empty', True)
+        self.shuffle_pairing    = cfg['chain'].get('shuffle_pairing', False)
+        self.filling_empty      = cfg['chain'].get('filling_empty', True)
 
     def forward(self, input):
         """
@@ -113,11 +113,11 @@ class GANLoss(torch.nn.Module):
         super(GANLoss, self).__init__()
 
         # Set the loss
-        self.loss               = cfg.get('loss', 'CE')
-        self.reduction          = cfg.get('reduction', 'mean')
-        self.gen_loss_factor    = cfg.get('gen_loss_factor', None)
-        self.loss_aggr          = cfg.get('loss_aggr', 'concat')
-        self.image_size         = cfg.get('image_size', 1024)
+        self.loss               = cfg['chain'].get('loss', 'CE')
+        self.reduction          = cfg['chain'].get('reduction', 'mean')
+        self.gen_loss_factor    = cfg['chain'].get('gen_loss_factor', None)
+        self.loss_aggr          = cfg['chain'].get('loss_aggr', 'concat')
+        self.image_size         = cfg['chain'].get('image_size', 1024)
 
         if self.loss == 'CE':
             self.lossfn = torch.nn.CrossEntropyLoss(reduction=self.reduction)

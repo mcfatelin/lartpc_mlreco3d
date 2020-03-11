@@ -150,7 +150,7 @@ class UResNet(nn.Module):
         # Encoding steps
         self.double_resnet = nn.ModuleList()
         current_num_outputs = self.base_num_outputs
-        for step in xrange(self.num_strides):
+        for step in range(self.num_strides):
             self.double_resnet.append(DoubleResnet(
                 is_3d = self.is_3d,
                 num_inputs = current_num_outputs,
@@ -164,7 +164,7 @@ class UResNet(nn.Module):
         # Decoding steps
         self.decode_conv = nn.ModuleList()
         self.decode_double_resnet = nn.ModuleList()
-        for step in xrange(self.num_strides):
+        for step in range(self.num_strides):
             self.decode_double_resnet.append(DoubleResnet(
                 is_3d = self.is_3d,
                 num_inputs = current_num_outputs,
@@ -221,11 +221,11 @@ class UResNet(nn.Module):
         net = self.conv1(net)
         conv_feature_map[net.size()[1]] = net
         # Encoding steps
-        for step in xrange(self.num_strides):
+        for step in range(self.num_strides):
             net = self.double_resnet[step](net)
             conv_feature_map[net.size()[1]] = net
         # Decoding steps
-        for step in xrange(self.num_strides):
+        for step in range(self.num_strides):
             # num_outputs = net.size()[1] / 2
             net = self.decode_conv[step](net)
             net = torch.cat((net, conv_feature_map[net.size()[1]]), dim=1)

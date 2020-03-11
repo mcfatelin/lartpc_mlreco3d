@@ -25,7 +25,7 @@ class GANUResNetGenerator(torch.nn.Module):
         )
 
         # Initialize uresnet
-        self.uresnet = UResNet(cfg)
+        self.uresnet = UResNet(model_config)
 
     def forward(self, input):
         """
@@ -33,16 +33,21 @@ class GANUResNetGenerator(torch.nn.Module):
         Need to turn it to dense one her
         Return an image with the same size as an input
         """
+        # debug use
+        print("input device = "+str(input.device))
+        print("internal tensor device = "+str(self.input_tensor.device))
+        print("input type = "+str(input.dtype))
+        print("internal tensor type = "+str(self.input_tensor.dtype))
         # check if the device is the same between the input and internal tensor
         if input.device!=self.input_tensor.device:
-            self.input_tensor.device = input.device
+            self.input_tensor = self.input_tensor.to(input.device)
         # make self.input_tensor zeros
         self.input_tensor[:,:,:,:,:]=0
         # fill the value
         self.fill_input_tensor(input)
 
         # May need an adaptor
-        net =  self.uresnet(input)
+        net =  self.uresnet(self.input_tensor)
 
         # Make sparse to dense
         return self.dense_to_sparse(net)
@@ -53,12 +58,12 @@ class GANUResNetGenerator(torch.nn.Module):
         input - (tensor) (N, 5) [x,y,z,batch_id,value]
         """
         self.input_tensor[
-            input[:,3].int(),
-            :,
-            input[:,0].int(),
-            input[:,1].int(),
-            input[:,2].int(),
-        ] = input[:,4]
+            input[:,3].long(),
+            0,
+            input[:,0].long(),
+            input[:,1].long(),
+            input[:,2].long(),
+        ] = input[:,4].float()
         return
 
     def sparse_to_dense(self, net):
@@ -72,12 +77,12 @@ class GANUResNetGenerator(torch.nn.Module):
         sparse_tensor = torch.zeros(
             inds.size()[0],
             5,
-            dtype=torch.float,
+            dtype=net.dtype,
             device=net.device,
         )
         # fill the sparse tensor
-        sparse_tensor[:,:3] = inds[:,2:].float()
-        sparse_tensor[:,3]  = inds[:,0].float()
+        sparse_tensor[:,:3] = inds[:,2:].type(net.dtype)
+        sparse_tensor[:,3]  = inds[:,0].type(net.dtype)
         sparse_tensor[:,4]  = self.input_tensor[
             inds[:,0],
             inds[:,1],

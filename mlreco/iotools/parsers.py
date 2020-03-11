@@ -582,7 +582,7 @@ def parse_cluster3d_track(data):
     if len(inds_track)==0:
         # no track in the event
         # return an empty arrays
-        return np.zeros((0,4)), np.zeros((0,4))
+        return np.zeros((0,4), dtype=np.float32), np.zeros((0,4), dtype=np.float32)
     pickedup_group_id = np.random.choice(
         np.unique(np_features[inds_track,2]),
         size=1
@@ -614,7 +614,7 @@ def parse_cluster3d_shower(data):
     if len(inds_shower)==0:
         # no shower in the event
         # return an empty arrays
-        return np.zeros((0,4)), np.zeros((0,4))
+        return np.zeros((0,4),dtype=np.float32), np.zeros((0,4),dtype=np.float32)
     pickedup_group_id = np.random.choice(
         np.unique(np_features[inds_shower,-2]),
         size=1
