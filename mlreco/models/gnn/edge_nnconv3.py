@@ -7,8 +7,9 @@ from __future__ import print_function
 import torch
 import numpy as np
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, Sigmoid, LeakyReLU, Dropout, BatchNorm1d
+import torch.nn.functional as F
 from torch_geometric.nn import MetaLayer, NNConv
-
+from mlreco.models.gnn.normalizations import BatchNorm, InstanceNorm
 from .edge_pred import EdgeModel, BilinEdgeModel
 
 class NNConvModel(torch.nn.Module):
@@ -40,7 +41,7 @@ class NNConvModel(torch.nn.Module):
         # extra flags
         self.batchnorm_layer = self.model_config.get('batchnorm_layer', False) # whether to apply batchnorm everywhere
         self.mlp_depth = self.model_config.get("mlp_depth", 2) # depth of mlp
-        self.update_edge = self.model_config.get('udpate_edge', False) # whether to update edge in each message passing loop
+        self.update_edge = self.model_config.get('update_edge', False) # whether to update edge in each message passing loop
 
         # perform batch normalization
         self.bn_node = torch.nn.ModuleList()
@@ -76,16 +77,17 @@ class NNConvModel(torch.nn.Module):
                 modules.append(
                     Lin(self.mlp_node_numbers[j], self.mlp_node_numbers[j+1])
                 )
-                modules.append(
-                    LeakyReLU(self.leak)
-                )
+                if j<self.mlp_depth-1:
+                    modules.append(
+                        LeakyReLU(self.leak)
+                    )
             self.nn.append(Seq(*modules))
             self.layer.append(
                 NNConv(ninput, noutput, self.nn[i], aggr=self.aggr)
             )
-            self.bn_node.append(BatchNorm1d(ninput))
+            self.bn_node.append(BatchNorm(ninput))
             self.edge_updates.append(
-                MetaLayer(EdgeLayer(noutput, self.edge_in, self.edge_in,leakiness=self.leak))
+                MetaLayer(edge_model=EdgeLayer(noutput, self.edge_in, self.edge_in,leakiness=self.leak))
             )
             ninput = noutput
             self.mlp_node_numbers = mlp_node_numbers2
@@ -121,8 +123,8 @@ class NNConvModel(torch.nn.Module):
                 # it also activate x as well.
                 # to-do: this structure is just for making previous training still usable.
                 #        we can abandon in future
-                x = F.leaky_relu(x, negative_slope=self.leakiness)
-                _, e, _ = self.edge_updates[i](x, edge_index, e)
+                x = F.leaky_relu(x, negative_slope=self.leak)
+                _, e, _ = self.edge_updates[i](x, edge_index, e, u=None, batch=xbatch)
 
         e = self.edge_predictor(e)
 
