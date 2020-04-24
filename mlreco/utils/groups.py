@@ -144,7 +144,7 @@ def process_group_data(data_grp, data_img):
     return data_grp[inds,:]
 
 
-def get_interaction_id(particle_v, np_features, num_ancestor_loop=1):
+def get_interaction_id(particle_v, np_features, num_ancestor_loop=3):
     '''
     A function to sort out interaction ids.
     Note that this assumes cluster_id==particle_id.
