@@ -213,9 +213,17 @@ class ClustEdgeGNN(torch.nn.Module):
         edge_index = [cids[edge_index[:,b]].T for b in beids]
         clusts = [np.array([vids[c] for c in np.array(clusts)[b]]) for b in bcids]
 
-        return {'edge_pred': [edge_pred],
-                'edge_index': [edge_index],
-                'clusts': [clusts]}
+        # debug use, temporary
+        output_x = [x[b].cpu().detach().numpy() for b in bcids]
+        output_e = [e[b].cpu().detach().numpy() for b in beids]
+
+        return {
+            'edge_pred': [edge_pred],
+            'edge_index': [edge_index],
+            'clusts': [clusts],
+            'x': [output_x],
+            'e': [output_e],
+        }
 
 
 class EdgeChannelLoss(torch.nn.Module):
