@@ -87,6 +87,10 @@ class ClustEdgeGNN(torch.nn.Module):
         # Hidden flag for shuffling cluster
         self.shuffle_clusters = chain_config.get('shuffle_clusters', False)
 
+        # Hidden flag for normalizing all coordinate feats
+        self.normalize_coor   = chain_config.get('normalize_coor', False)
+        self.image_size       = chain_config.get('image_size', 768)
+
         # If requested, use DBSCAN to form clusters from semantics
         self.dbscan = None
         if 'dbscan' in cfg:
@@ -180,13 +184,26 @@ class ClustEdgeGNN(torch.nn.Module):
         x = self.node_encoder(data, clusts)
         e = self.edge_encoder(data, clusts, edge_index)
 
+        # Normalize coord
+        # Hardcode warning
+        # Caveat: Maybe it can be moved to cluster_xx_encoder
+        # Note it has error if use only cnn encoder
+        if self.normalize_coor:
+            normalize_node_feat_inds = [0,1,2]
+            normalize_edge_feat_inds = [0,1,2,3,4,5]
+            x[:,normalize_node_feat_inds] = x[:,normalize_node_feat_inds]/self.image_size
+            e[:,normalize_edge_feat_inds] = e[:,normalize_edge_feat_inds]/self.image_size
+
         # Add start point and/or start direction to node features if requested
         if self.add_start_point:
             points = get_cluster_points_label(data, particles, clusts, self.source_col==6)
+            if self.normalize_coor:
+                points = points/self.image_size
             x = torch.cat([x, points.float()], dim=1)
             if self.add_start_dir:
                 dirs = get_cluster_directions(data, points[:,:3], clusts, self.start_dir_max_dist)
                 x = torch.cat([x, dirs.float()], dim=1)
+
 
         # Bring edge_index and batch_ids to device
         index = torch.tensor(edge_index, device=device, dtype=torch.long)
