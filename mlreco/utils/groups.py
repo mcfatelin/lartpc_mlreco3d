@@ -290,7 +290,7 @@ def get_nu_id(cluster_event, particle_v, interaction_ids):
         - nu_id: a numpy array with the shape (n,1)
     '''
     # initiate the nu_id
-    nu_id = np.ones(len(particle_v))*(-1)
+    nu_id = np.zeros(len(particle_v))*(-1)
     # find the first cluster that has nonzero size
     sizes = np.array([cluster_event.as_vector()[i].as_vector().size() for i in range(len(particle_v))])
     nonzero = np.where(sizes > 0)[0]
