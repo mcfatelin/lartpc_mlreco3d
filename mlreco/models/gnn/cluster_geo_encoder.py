@@ -36,7 +36,7 @@ class ClustGeoNodeEncoder(torch.nn.Module):
 
         # Get the value & semantic types
         values = data[:,4].float()
-        sem_types = data[:,7].float()
+        sem_types = data[:,-1].float()
 
         # If numpy is to be used, bring data to cpu, pass through function
         if self.use_numpy:
